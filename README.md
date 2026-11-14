@@ -12,6 +12,7 @@ Termux turns an Android device into a pocket-sized Linux environment: useful for
 - [Start here](#start-here)
 - [Pi coding agent on Termux](#pi-coding-agent-on-termux)
 - [The playground catalog](#the-playground-catalog)
+- [Deeper Termux explorations](#deeper-termux-explorations)
 - [A suggested progression](#a-suggested-progression)
 - [Phone-first constraints](#phone-first-constraints)
 - [Safety and maintenance](#safety-and-maintenance)
@@ -341,6 +342,177 @@ Never scan, exploit, brute-force, or intercept systems without authorization. Te
 5. **Tiny CI runner** — clone a repository, run tests, and report results locally.
 6. **Self-hosted status page** — monitor only your own services and display uptime/history.
 7. **Interactive shell course** — a series of scripts that teach commands through small challenges.
+
+## Deeper Termux explorations
+
+The catalog above gives quick projects. These topics explain how to turn Termux into a more capable, reliable mobile development environment.
+
+### Installation, updates, and recovery
+
+- Use Termux and every add-on from the same source, normally F-Droid or the official GitHub releases. Do not mix F-Droid, GitHub, and deprecated Play Store builds.
+- Update both the application and packages. A package update cannot repair an incompatible or outdated APK.
+- Keep a bootstrap script or a package list so the environment can be rebuilt:
+
+```sh
+pkg list-installed > ~/termux-packages.txt
+apt-mark showmanual > ~/termux-manual-packages.txt
+```
+
+- Back up `~/` and important configuration such as `~/.ssh`, `~/.gitconfig`, `~/.pi`, and project files. Never back up secrets to a public repository.
+- If Termux becomes unusable, export important files first when possible, then reinstall from one source and restore selectively. Android app-data removal destroys the private Termux home.
+
+### Understand the Termux filesystem
+
+| Path | Meaning | Recommendation |
+|---|---|---|
+| `~` | Termux private home | Keep active source code, virtual environments, databases, and build trees here |
+| `$PREFIX` | Termux installed packages, commonly `/data/data/com.termux/files/usr` | Do not edit manually; reinstall packages instead |
+| `~/storage` | Links created by `termux-setup-storage` | Use when Android apps need to see files |
+| `/storage/emulated/0` | Android shared storage | Expect limited Unix permissions and slower or unusual behavior |
+| `.pi/` and `.agents/` | Project-local Pi resources | Review before trusting extensions or skills |
+
+Shared storage is good for exported documents, photos, and exchange files. It is usually a poor location for Git repositories, databases, package installations, and builds because permissions, symlinks, file watching, and executable bits may not behave like a real Linux filesystem.
+
+### Packages, compilers, and native builds
+
+Termux uses `pkg` as a friendly wrapper around `apt`:
+
+```sh
+pkg search keyword
+pkg show package-name
+pkg install clang make pkg-config
+pkg upgrade
+```
+
+Termux packages are compiled for Android and the phone's architecture. Prefer them over copying binaries from desktop Linux. For source builds, check available RAM, storage, compiler requirements, and whether the project assumes glibc, systemd, Docker, or privileged kernel features.
+
+Useful explorations include compiling C with `clang`, building a Rust or Go CLI, creating a Python package with native dependencies, and cross-compiling an artifact for another machine. Build failures often describe a missing Android-compatible dependency rather than a problem with the source itself.
+
+### Android integrations and add-ons
+
+Termux can cooperate with Android through companion applications and intents:
+
+- **Termux:API:** battery, clipboard, camera, notifications, sensors, speech, location, vibration, brightness, and media actions where supported.
+- **Termux:Widget:** launch approved scripts from the home screen.
+- **Termux:Boot:** run scripts after boot, subject to Android background restrictions.
+- **Termux:Float:** use a floating terminal over another app.
+- **Termux:GUI:** build richer Android-facing interfaces from supported Termux programs.
+- **Intents:** use `termux-open`, `termux-open-url`, and Android intent tools to hand work to another application.
+
+Install only the integrations you need and grant the smallest useful permissions. Android version, device manufacturer, and add-on version affect what works:
+
+```sh
+command -v termux-notification
+command -v termux-location
+termux-open-url 'https://termux.dev'
+```
+
+A productive pattern is to keep the core workflow in ordinary shell/Python code and use Termux:API only at the boundary where Android features are needed.
+
+### Background execution and reliability
+
+Termux processes are ordinary Android app processes. A long-running command may stop when Android reclaims memory, the app is swiped away, the phone reboots, or a vendor's battery manager intervenes.
+
+For work that can be interrupted:
+
+```sh
+tmux new -s work
+termux-wake-lock     # use only while needed
+# run the task, then detach with Ctrl-b d
+tmux attach -t work
+termux-wake-unlock
+```
+
+Use `termux-job-scheduler`, Termux:Boot, or Android automation only for jobs that can tolerate delays and repeated execution. Make jobs idempotent, log their results, and test them after a reboot. A phone should not be assumed to provide production-grade uptime.
+
+### Remote development
+
+A phone can be either the client or the small server in a development setup:
+
+- Use `ssh` to work on a desktop, home server, or VPS.
+- Use `git`, `rsync`, or a private Git host to move source safely.
+- Run a local service on `127.0.0.1` for phone-only access, or deliberately bind to the LAN after understanding the firewall and authentication implications.
+- Use Pi in Termux as the conversational front end while heavy builds, tests, or model inference run over SSH on a stronger machine.
+- Use SSH keys protected by a passphrase; avoid exposing an SSH server directly to the public internet.
+
+This hybrid setup is often better than forcing a phone to compile a large project or host an always-on service.
+
+### Android and mobile application development
+
+Termux is useful for source control, code generation, scripting, testing APIs, and some native builds, but Android application builds have practical limits:
+
+- Gradle and Android SDK builds consume substantial storage, RAM, CPU, and battery.
+- SDK components, Java versions, NDK versions, and project plugins must match.
+- Emulator-based testing is generally not available inside an unrooted phone's Termux environment.
+- A physical Android device, remote CI runner, or desktop can provide the final build and test environment.
+
+Worthwhile experiments include Kotlin/Java command-line exercises, Android project inspection, Gradle dependency analysis, APK metadata inspection, signing workflow documentation, and using Termux as a Git/SSH front end for a remote Android build machine. Never handle release signing keys casually or commit them to a project.
+
+Cross-platform stacks such as Flutter, React Native, and web-to-mobile toolchains may require desktop GUI tools, SDK components, or native dependencies that are not practical on every phone. Verify the current toolchain requirements before committing to a phone-only workflow.
+
+### Local AI and model endpoints
+
+Pi normally sends requests to a configured model provider, but Termux can also be a client for a model running elsewhere:
+
+- Connect Pi to a local OpenAI-compatible endpoint on the phone or LAN when a supported model server is available.
+- Run small CPU-oriented inference experiments with compatible tools such as `llama.cpp` builds, if the device has enough RAM and storage.
+- Use a desktop, home server, or VPS for larger models and let Termux provide the terminal interface.
+- Keep model files outside shared storage when possible, monitor heat and battery use, and expect slower generation without acceleration.
+- Compare local and hosted models for privacy, cost, latency, context size, and coding quality.
+
+Local inference is an optional experiment, not a requirement for Pi. A model endpoint still needs configuration, sufficient memory, and a compatible provider interface.
+
+### Pi workflows worth building
+
+Pi is most useful when surrounded by small, explicit workflows rather than treated as an unrestricted command executor:
+
+- Put project conventions, build commands, test commands, and boundaries in `AGENTS.md`.
+- Use skills for repeatable domain procedures and prompt templates for recurring requests.
+- Use extensions for confirmation gates, Git checkpoints, secret protection, Android notifications, and project dashboards.
+- Use MCP only for trusted integrations, with the smallest useful tool exposure.
+- Use `--print` for one-shot reports, JSON mode for scripts, RPC/SDK for applications, and sessions for iterative work.
+- Have Pi explain a proposed change, make the smallest edit, run focused tests, then review the diff before committing.
+- Export or summarize long sessions into project notes so important decisions do not remain trapped in chat history.
+
+A useful mobile pattern is: **inspect → propose → approve → edit → test → review → commit**.
+
+### Security, privacy, and trust
+
+Pi, shell scripts, extensions, skills, MCP servers, and npm packages can all execute with the permissions available to the Termux process. Treat project resources as code:
+
+- Read unfamiliar `AGENTS.md`, skills, extensions, and install scripts before trusting them.
+- Use project-local resources only in repositories you recognize.
+- Keep API keys in environment variables or a protected secret store, not prompts, source files, logs, or Git history.
+- Restrict shared-storage access and avoid granting more Android permissions than necessary.
+- Use separate test credentials and disposable directories for experiments.
+- Review `git diff`, command output, network destinations, and file paths before approving consequential actions.
+- Protect commands that delete, overwrite, publish, install, change infrastructure, or transfer private data.
+
+Termux is not a security boundary against code you voluntarily run. The model is also not a security reviewer by itself.
+
+### Troubleshooting map
+
+| Symptom | First checks |
+|---|---|
+| `pi` or another command is missing | `command -v name`, `$PATH`, `npm prefix -g`, then open a new shell |
+| `permission denied` in shared storage | Run `termux-setup-storage`; move active work into `~` |
+| Package cannot be found | `pkg update`, check the package name, and verify the repository source |
+| Desktop binary will not run | Install a Termux package or rebuild for Android; do not assume glibc compatibility |
+| Process disappears | Check battery optimization, `tmux`, logs, wakelock use, and vendor restrictions |
+| Scheduled job does not run | Test the command manually, inspect Android permissions, and verify the scheduler after reboot |
+| Build runs out of memory or storage | Check `free -h` and `df -h`; reduce parallelism or move heavy work to SSH/CI |
+| Pi extension or skill fails | Read startup diagnostics, run `/reload`, inspect dependencies, and test it in isolation |
+| Clipboard integration fails | Install both the Termux:API app and `termux-api` package from the same source |
+| Network service is unreachable | Check bind address, port, local firewall/network, and whether Android killed the process |
+
+### Mobile ergonomics and performance
+
+- A hardware keyboard, programmable extra keys, and `tmux` often improve productivity more than another package.
+- Use narrow output, paging, color only when supported, and JSON modes for machine processing.
+- Keep builds cool: avoid unnecessary parallel jobs, close unused processes, and stop servers when finished.
+- Monitor `free -h`, `df -h`, `top`, and battery state during heavy work.
+- Keep source and caches organized; large SDKs, model files, and build artifacts can silently consume storage.
+- Prefer fast feedback: focused tests first, full builds on a remote machine or CI when appropriate.
 
 ## A suggested progression
 
