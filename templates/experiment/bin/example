@@ -1,0 +1,75 @@
+#!/usr/bin/env sh
+# example - template entry point for a new playground experiment.
+#
+# Replace the name, the messages, and the src/ call below.
+# Rules for every entry point in this repo:
+#   * POSIX sh, no bashisms, must pass `bash -n`.
+#   * `--help` prints usage and exits 0.
+#   * Invalid input exits non-zero.
+#   * Safe to interrupt with Ctrl-C, and safe to run twice in a row.
+
+set -eu
+
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+root=$(CDPATH= cd -- "$here/.." && pwd)
+
+usage() {
+    cat <<'EOF'
+Usage: example [OPTION]
+
+A one-line description of what this experiment does goes here.
+
+Options:
+  -h, --help     Show this help and exit.
+  --version      Print the experiment version and exit.
+
+Files:
+  src/           Implementation.
+  tests/         Checks and sample data.
+EOF
+}
+
+version() {
+    printf 'example 0.1.0\n'
+}
+
+case "${1-}" in
+    -h|--help)
+        usage
+        exit 0
+        ;;
+    --version)
+        version
+        exit 0
+        ;;
+    '')
+        printf 'example: no arguments given.\n' >&2
+        usage >&2
+        exit 2
+        ;;
+esac
+
+# ------------------------------------------------------------------
+# Real implementation goes in src/. Two supported styles:
+#
+#   1. Shell:  keep the logic in src/example.sh and source it here.
+#   2. Python: keep the logic in src/example.py and call it here.
+#
+# The Python form is shown below. Guard the interpreter early so a phone
+# without Python gets a useful message instead of a stack trace.
+# ------------------------------------------------------------------
+
+PYTHON=${PYTHON:-python3}
+
+if ! command -v "$PYTHON" >/dev/null 2>&1; then
+    printf 'example: python3 was not found on PATH.\n' >&2
+    printf 'Install it with: pkg install python\n' >&2
+    exit 127
+fi
+
+if [ ! -f "$root/src/example.py" ]; then
+    printf 'example: src/example.py is missing. Copy this template and implement it.\n' >&2
+    exit 1
+fi
+
+exec "$PYTHON" "$root/src/example.py" "$@"

@@ -1,0 +1,35 @@
+# --- Node / npm ---
+node_modules/
+npm-debug.log*
+.npm/
+
+# --- Secrets and local environment ---
+.env
+.env.*
+!.env.example
+
+# --- Local databases and dumps ---
+*.db
+*.sqlite3
+*.sqlite
+*.db-journal
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+
+# --- OS cruft ---
+.DS_Store
+Thumbs.db
+
+# --- Generated package snapshots (machine-specific, recreated by scripts/snapshot-packages.sh) ---
+termux-packages.txt
+termux-manual-packages.txt
+
+# --- Scratch space ---
+/tmp/

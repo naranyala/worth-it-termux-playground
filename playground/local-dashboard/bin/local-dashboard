@@ -1,0 +1,18 @@
+#!/usr/bin/env sh
+# local-dashboard - entry point for the local dashboard experiment.
+# POSIX sh; must pass `bash -n`.
+
+set -eu
+
+here=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+root=$(CDPATH= cd -- "$here/.." && pwd)
+
+PYTHON=${PYTHON:-python3}
+
+if ! command -v "$PYTHON" >/dev/null 2>&1; then
+    printf 'local-dashboard: python3 was not found on PATH.\n' >&2
+    printf 'Install it with: pkg install python\n' >&2
+    exit 127
+fi
+
+exec "$PYTHON" "$root/src/dashboard.py" "$@"

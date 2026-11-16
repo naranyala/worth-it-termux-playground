@@ -1,0 +1,101 @@
+name: docs
+
+# Runs on every push and pull request that touches the repository, plus a
+# weekly schedule so that fast-moving upstream facts (Pi CLI flags, Termux
+# package builds) are re-checked even when nothing changed locally.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Every Monday at 06:00 UTC.
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+# Cancel superseded runs on the same branch so a new push does not queue
+# behind an older build.
+concurrency:
+  group: docs-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  links:
+    name: Link checker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      # NOTE: this repository links to the upstream Pi project
+      # (earendil-works/pi). That organisation/repository may move or rename,
+      # which can break links here even when nothing in this repo is wrong.
+      # The `upstream-drift` job below is the real gate for upstream facts;
+      # this job only checks that links resolve today.
+      - name: Check links with lychee
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: >-
+            --no-progress
+            --include-fragments
+            README.md
+            "docs/**/*.md"
+            CONTRIBUTING.md
+            AGENTS.md
+          fail: true
+        continue-on-error: false
+
+  markdown:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Lint Markdown with markdownlint-cli2
+        uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          # .markdownlint-cli2.yaml disables MD013 (line length), allows inline
+          # HTML, requires ATX headings, and allows duplicate headings across
+          # files but not within a single file.
+          config: .markdownlint-cli2.yaml
+          globs: "**/*.md"
+          noBanner: true
+
+  snippets:
+    name: Shell snippet syntax
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check shell snippets with bash -n
+        run: python3 scripts/check-snippets.py
+
+  upstream-drift:
+    name: Upstream drift
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Check upstream Pi CLI flags and Termux nodejs facts
+        # Allowed to fail: upstream facts change without anyone touching this
+        # repository, and the job output surfaces what drifted.
+        run: python3 scripts/check-upstream.py
+
+      - name: Write drift report
+        if: always()
+        run: python3 scripts/check-upstream.py > upstream-drift-report.txt 2>&1 || true
+
+      - name: Upload drift report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: upstream-drift-report
+          path: upstream-drift-report.txt
+          if-no-files-found: ignore

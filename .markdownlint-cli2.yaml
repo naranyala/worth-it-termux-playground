@@ -1,0 +1,41 @@
+# markdownlint-cli2 configuration for the Termux Playground docs.
+# Reference: https://github.com/DavidAnson/markdownlint-cli2
+
+config:
+  # The repo uses ATX-style headings ("# Heading") everywhere.
+  MD003:
+    style: atx
+  # Long lines are unavoidable in tables and prose paragraphs.
+  MD013: false
+  # Inline HTML is allowed (e.g. <details> blocks and small badges).
+  MD033:
+    allowed_elements:
+      - details
+      - summary
+      - br
+      - img
+      - a
+      - p
+      - kbd
+      - code
+  # Duplicate headings are fine across different files, but not within one file.
+  MD024:
+    siblings_only: true
+  # Ordered list numbering is sometimes intentionally explicit.
+  MD029:
+    style: one_or_ordered
+  # Inline code and shell prompts should not be flagged as bare URLs.
+  MD034: false
+  # Duplicate headings in the table of contents area are intentional.
+  MD025: false
+  # First line in file should be a top-level heading.
+  MD041: false
+  # Trailing punctuation in headings is a style choice, not an error.
+  MD026:
+    punctuation: ".,;:!。，；：！"
+  # Files should end with a single newline character.
+  MD047: true
+
+ignores:
+  - node_modules/
+  - .git/
